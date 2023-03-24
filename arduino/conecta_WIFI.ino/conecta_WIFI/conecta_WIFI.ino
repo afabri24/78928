@@ -1,11 +1,13 @@
 #include <Arduino.h>
 #include <ESPAsyncWebSrv.h>
 #include "DHTesp.h"
+#include <ArduinoJson.h>
+#include <FS.h>
 #define DHTpin 15
 DHTesp dht;
 
-const char* ssid="afabri";
-const char* password= "capacitacion";
+const char* ssid="msiafabri";
+const char* password= "spiderman24";
 
 AsyncWebServer server(80);
 
@@ -16,7 +18,10 @@ void setup() {
   conectarse();
    dht.setup(DHTpin, DHTesp::DHT11);
 
-  server.on("/",HTTP_GET,[](AsyncWebServerRequest * request){    
+   SPIFFS.begin();
+
+  
+server.on("/",HTTP_GET,[](AsyncWebServerRequest * request){    
     int numParametros=request->params();
     Serial.print(numParametros);
     if(numParametros==0){
@@ -28,6 +33,9 @@ void setup() {
       request->send(200,"text/html",html);
     }
     });
+
+  
+  
 
     server.on("/adios",HTTP_GET,[](AsyncWebServerRequest * r){
     r->send(200,"text/html","<h1>adios</h1>");
@@ -72,6 +80,7 @@ void setup() {
     String estado=String(dht.computeHeatIndex(dht.toFahrenheit(temperatura), humedad, true),1);
     r->send(200,"text/html","<h1>"+estado+"</h1>");
     });
+    server.on("/datos",HTTP_GET,getData);
     server.begin();    
  
 //lograda la conexion se muestra la informacion
@@ -96,3 +105,18 @@ void loop() {
     Serial.println(WiFi.localIP());
       
     }
+    void getData(AsyncWebServerRequest *request){
+   AsyncResponseStream *response = request->beginResponseStream("application/json");
+    
+   // obtendríamos datos de GPIO, estado...
+   StaticJsonDocument<200> doc;
+     String estado=dht.getStatusString();
+    float humedad =  dht.getHumidity();
+    float temperatura = dht.getTemperature();   
+   doc["estado"] = estado;
+   doc["temperatura"] = temperatura;
+   doc["humedad"] = humedad;  
+   serializeJson(doc, *response);
+   
+   request->send(response);
+  }
